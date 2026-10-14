@@ -13,6 +13,7 @@ from pathlib import Path
 from zipfile import ZipFile
 
 from build_pack import PACK_FORMATS, collect
+from model_textures import model_issues
 
 
 def target(ref, kind):
@@ -22,7 +23,7 @@ def target(ref, kind):
     return f'assets/{ns}/{kind}/{rel}.json' if kind == 'models' else f'assets/{ns}/{kind}/{rel}.png'
 
 
-def inspect(files, version):
+def inspect(files, version, warnings=None):
     errors = []
     def err(msg):
         errors.append(f'{version}: {msg}')
@@ -60,17 +61,6 @@ def inspect(files, version):
                 parent = doc.get('parent')
                 if parent and target(parent, 'models') not in files and not target(parent, 'models').startswith('assets/minecraft/'):
                     err(f'{file}: nonexistent custom parent {parent}')
-                textures = doc.get('textures', {})
-                for key, ref in textures.items():
-                    if isinstance(ref, str) and not ref.startswith('#'):
-                        t = target(ref, 'textures')
-                        if t not in files and not t.startswith('assets/minecraft/'):
-                            err(f'{file}: missing custom texture {key} = {ref}')
-                for n, el in enumerate(doc.get('elements', [])):
-                    for face in el.get('faces', {}).values():
-                        ref = face.get('texture')
-                        if not isinstance(ref, str) or not ref.startswith('#') or ref[1:] not in textures:
-                            err(f'{file}: unresolved face texture on element {n}: {ref}')
                 for node in doc.get('overrides', []):
                     ref = node.get('model')
                     if ref and target(ref, 'models') not in files and not target(ref, 'models').startswith('assets/minecraft/'):
@@ -120,6 +110,11 @@ def inspect(files, version):
             model = lines.get('model')
             if model and target(model, 'models') not in files:
                 err(f'{file}: referenced CIT model does not exist: {model}')
+    for level, name, detail in model_issues(files):
+        if level == 'ERROR':
+            err(f'{name}: {detail}')
+        elif warnings is not None:
+            warnings.append(f'{version}: {name}: {detail}')
     if 'assets/mcd/textures/item/swords/under_fix.png' not in files:
         err('Dragonslayer patch is absent')
     if 'assets/mcd/textures/item/swords/handle_wraps.png.mcmeta' not in files:
@@ -139,18 +134,24 @@ def main():
     if a.zip and not a.version:
         p.error('--zip requires --version')
     errors = []
+    all_warnings = []
     for version in (a.version,) if a.version else PACK_FORMATS:
         if a.zip:
             with ZipFile(a.zip) as z:
                 files = {name: z.read(name) for name in z.namelist() if not name.endswith('/')}
         else:
             files = collect(version)
-        e = inspect(files, version)
+        warnings = []
+        e = inspect(files, version, warnings)
         errors.extend(e)
-        print(f'{version:8s} {"FAIL" if e else "OK"}  ({len(files)} pack files, {len(e)} errors)')
+        all_warnings.extend(warnings)
+        print(f'{version:8s} {"FAIL" if e else "OK"}  ({len(files)} pack files, {len(e)} errors, {len(warnings)} warnings)')
     for e in errors:
         print('ERROR:', e)
-    print(f'{len(errors)} total errors.')
+    # De-duplicate warnings across the 23 generated versions.
+    for warning in all_warnings:
+        print('WARN:', warning)
+    print(f'{len(errors)} total errors; {len(all_warnings)} warnings.')
     return int(bool(errors))
 
 

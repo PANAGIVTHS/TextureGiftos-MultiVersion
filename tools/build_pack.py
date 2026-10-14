@@ -13,6 +13,8 @@ import json
 from pathlib import Path
 from zipfile import ZIP_DEFLATED, ZipFile, ZipInfo
 
+from model_textures import prune_broken_faces
+
 ROOT = Path(__file__).resolve().parent.parent
 ASSETS = ROOT / 'assets'
 
@@ -190,7 +192,7 @@ def legacy_definitions():
     return out
 
 
-def collect(version):
+def collect(version, *, prune_missing_faces=False):
     if version not in PACK_FORMATS:
         raise ValueError(f'Unsupported Minecraft release: {version}')
     legacy = PACK_FORMATS[version] < 46 if isinstance(PACK_FORMATS[version], int) else False
@@ -204,11 +206,17 @@ def collect(version):
                 continue
             files[file.relative_to(ROOT).as_posix()] = file.read_bytes()
     files.update(legacy_definitions() if legacy else modern_definitions(name_switch_supported=(version != '1.21.4')))
+    if prune_missing_faces:
+        files, actions = prune_broken_faces(files)
+        if actions:
+            print(f"WARNING {version}: omitted {len(actions)} broken face/texture entries from generated ZIP (source unchanged)")
+            for action in actions:
+                print("  " + action)
     return files
 
 
-def build(version, output):
-    files = collect(version)
+def build(version, output, *, prune_missing_faces=False):
+    files = collect(version, prune_missing_faces=prune_missing_faces)
     output.parent.mkdir(parents=True, exist_ok=True)
     with ZipFile(output, 'w', compression=ZIP_DEFLATED, compresslevel=9) as archive:
         for name, data in sorted(files.items()):
@@ -228,6 +236,8 @@ def main():
     group.add_argument('--all', action='store_true', help='Build one ZIP into each version folder')
     group.add_argument('--list', action='store_true', help='List supported releases')
     p.add_argument('--output-dir', type=Path, default=ROOT / 'versions')
+    p.add_argument('--prune-missing-faces', action='store_true',
+                   help='Opt-in: omit model faces with missing textures from generated ZIPs (source untouched)')
     a = p.parse_args()
     if a.list:
         for k, v in PACK_FORMATS.items():
@@ -235,7 +245,7 @@ def main():
         return 0
     for version in PACK_FORMATS if a.all else (a.version,):
         target = a.output_dir / version / f'TextureGiftos_{version}.zip'
-        n = build(version, target)
+        n = build(version, target, prune_missing_faces=a.prune_missing_faces)
         print(f'{version}: {target} ({n} files)')
     return 0
 
