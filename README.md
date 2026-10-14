@@ -24,6 +24,33 @@ checked into Git intentionally so each version can be downloaded from the
 repository without running Python. They contain only the installable pack,
 not any source-only files or `.git` metadata.
 
+# Temporary modded weapon builds
+
+`build_weapon_pack.py` creates a **complete, standalone resource-pack ZIP** with extra item definitions. It does **not** edit `assets/`, `versions/`, or the original build scripts. Outputs under `custom_builds/` are ignored by Git.
+
+```sh
+python tools/build_weapon_pack.py --version 1.20.1 --weapon soulsweapons:guts_sword=guts
+python tools/build_weapon_pack.py --version 26.3 --weapon soulsweapons:guts_sword=guts --weapon othermod:greatblade=dragonslayer
+python tools/build_weapon_pack.py --all --weapons-file weapons.txt --prune-missing-faces
+```
+
+`weapons.txt` example:
+
+```text
+# item registry ID = existing sword model
+soulsweapons:guts_sword=guts
+othermod:greatblade=dragonslayer
+```
+
+The output is `custom_builds/<version>/TextureGiftos_Custom_<version>.zip`. Install **only this ZIP** instead of the ordinary version ZIP; it already contains the full pack.
+
+For Minecraft 1.20.1–1.21.3, modded-item support is generated as OptiFine-style **CIT rules** and requires a compatible CIT client mod. Numeric `CustomModelData` is matched by the CIT rule. Vanilla alone cannot universally override arbitrary modded item models.
+
+For 1.21.4 and later, `assets/<mod_namespace>/items/<item>.json` item definitions are added to the generated ZIP. Numeric `CustomModelData` selects the target model; 1.21.5+ additionally includes a name-based selector. This may not work for mod items using custom renderers or special item-definition systems, and the fallback assumes the mod has a conventional `assets/<namespace>/models/item/<item>.json` model.
+
+Only the four existing sword models are supported. For any modded item with a different base ID than its intended model, specify `namespace:item=guts` etc. The script refuses unknown names rather than silently choosing a wrong model.
+
+
 ## Quick start
 
 Requirements: Python 3.9+; no third-party dependencies.
