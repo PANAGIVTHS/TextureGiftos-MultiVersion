@@ -26,30 +26,60 @@ not any source-only files or `.git` metadata.
 
 # Temporary modded weapon builds
 
-`build_weapon_pack.py` creates a **complete, standalone resource-pack ZIP** with extra item definitions. It does **not** edit `assets/`, `versions/`, or the original build scripts. Outputs under `custom_builds/` are ignored by Git.
+`build_weapon_pack.py` creates a **complete, standalone resource-pack ZIP**
+that adds your existing sword model selections to each specified modded item.
+It never edits the source in `assets/`, the normal ZIPs in `versions/`, or
+Git-tracked configuration. The `custom_builds/` output directory is ignored by
+Git (see root `.gitignore`).
+
+**All listed items support all sword names**, regardless of the item ID.
+For example, renaming `soulsweapons:guts_sword` to `Dragonslayer` will select
+`mcd:item/swords/dragonslayer`, provided the game version and item renderer
+support the name-based rule. You can also use the corresponding numeric
+`CustomModelData` ID.
 
 ```sh
-python tools/build_weapon_pack.py --version 1.20.1 --weapon soulsweapons:guts_sword=guts
-python tools/build_weapon_pack.py --version 26.3 --weapon soulsweapons:guts_sword=guts --weapon othermod:greatblade=dragonslayer
+python tools/build_weapon_pack.py --version 1.20.1 --weapon soulsweapons:guts_sword
+python tools/build_weapon_pack.py --version 26.3 --weapon soulsweapons:guts_sword --weapon othermod:greatblade
 python tools/build_weapon_pack.py --all --weapons-file weapons.txt --prune-missing-faces
 ```
 
 `weapons.txt` example:
 
 ```text
-# item registry ID = existing sword model
-soulsweapons:guts_sword=guts
-othermod:greatblade=dragonslayer
+# One item registry ID per line
+soulsweapons:guts_sword
+othermod:greatblade
 ```
 
-The output is `custom_builds/<version>/TextureGiftos_Custom_<version>.zip`. Install **only this ZIP** instead of the ordinary version ZIP; it already contains the full pack.
+Older command-line forms such as `--weapon soulsweapons:guts_sword=guts`
+are still accepted, but `=guts` no longer restricts that item to only
+one sword. Every listed item gets *all* existing sword selections.
 
-For Minecraft 1.20.1–1.21.3, modded-item support is generated as OptiFine-style **CIT rules** and requires a compatible CIT client mod. Numeric `CustomModelData` is matched by the CIT rule. Vanilla alone cannot universally override arbitrary modded item models.
+The output is `custom_builds/<version>/TextureGiftos_Custom_<version>.zip`.
+Install **only this ZIP** instead of the ordinary TextureGiftos ZIP for that
+version; it already contains the complete pack.
 
-For 1.21.4 and later, `assets/<mod_namespace>/items/<item>.json` item definitions are added to the generated ZIP. Numeric `CustomModelData` selects the target model; 1.21.5+ additionally includes a name-based selector. This may not work for mod items using custom renderers or special item-definition systems, and the fallback assumes the mod has a conventional `assets/<namespace>/models/item/<item>.json` model.
+## Compatibility
 
-Only the four existing sword models are supported. For any modded item with a different base ID than its intended model, specify `namespace:item=guts` etc. The script refuses unknown names rather than silently choosing a wrong model.
+- **1.20.1–1.21.3:** OptiFine-style CIT `.properties` rules are generated
+  under `assets/minecraft/optifine/cit/texturegiftos/`.
+  You need a compatible CIT mod (OptiFine / CIT Resewn / Forge CIT).
+  Renaming does **not** work via the vanilla renderer alone.
+- **1.21.4:** Numeric `CustomModelData` works with item definitions; vanilla
+  item-name selection in item definitions is not yet supported.
+- **1.21.5+:** Name matching and `CustomModelData` use the newer item-model
+  definition at `assets/<namespace>/items/<item>.json`.
 
+CIT/model definitions do **not** necessarily override a mod's custom
+item renderer. For modern versions, the fallback points to the mod's
+conventional `assets/<namespace>/models/item/<item>.json`. The mod may use a
+different fallback, so test each specific modded weapon in-game.
+
+All names are inherited from the base pack's Netherite Sword name rules
+(`NAME_RULES` in `tools/build_pack.py`). Current sword names include
+`Dragonslayer`, `Dragon Slayer`, `Aatrox`, `Guts' Sword`, and
+`Tenryū’s Shriek`. Existing numeric IDs `123001`–`123004` are preserved.
 
 ## Quick start
 

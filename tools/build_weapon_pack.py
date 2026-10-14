@@ -7,8 +7,10 @@ Examples:
   python tools/build_weapon_pack.py --all --weapons-file weapons.txt --prune-missing-faces
 
 Input syntax: namespace:item=model_key (guts, aatrox, dragonslayer, agsheath),
-or namespace:item=mcd:item/swords/model_key. Plain IDs are inferred only if
-there is an unambiguous model-key match. No source files are written.
+or simply namespace:item. Every registered modded item receives ALL the
+existing sword name and CustomModelData rules (not just one model). The
+optional =model_key is accepted for compatibility with older commands.
+No source files are written.
 """
 from __future__ import annotations
 import argparse
@@ -16,7 +18,7 @@ import json
 import re
 from pathlib import Path
 from zipfile import ZipFile, ZIP_DEFLATED, ZipInfo
-from build_pack import PACK_FORMATS, CUSTOM_SWORDS, collect, pretty_json, nested_model
+from build_pack import PACK_FORMATS, CUSTOM_SWORDS, NAME_RULES, collect, pretty_json, nested_model, numeric_model_selector
 
 ROOT = Path(__file__).resolve().parent.parent
 KEYS = {name: (f'swords/{name}', code) for name, code in CUSTOM_SWORDS}
@@ -26,60 +28,83 @@ IDENT = re.compile(r'^[a-z0-9_.-]+:[a-z0-9_./-]+$')
 
 
 def parse_weapons(raw):
+    """Parse registered item IDs; old =model_key syntax is optional.
+
+    Earlier versions applied one model to one item. All requested IDs now
+    receive the same name and numeric selections as a Netherite Sword.
+    """
     result = {}
     for value in raw:
         item, sep, key = value.partition('=')
         item = item.strip()
         if not IDENT.fullmatch(item):
             raise ValueError(f'Invalid item ID {item!r}; expected namespace:item')
-        if not sep:
-            key = item.split(':', 1)[1].rsplit('/', 1)[-1]
-        key = key.strip().removeprefix('mcd:item/').removeprefix('swords/')
-        if key not in KEYS:
-            raise ValueError(f'Unknown model {key!r} for {item}. Use item=guts|aatrox|agsheath|dragonslayer')
-        if item in result and result[item] != KEYS[key]:
-            raise ValueError(f'Conflicting models for {item}')
-        result[item] = KEYS[key]
+        key = key.strip().removeprefix('mcd:item/').removeprefix('swords/') if sep else None
+        if sep and key not in KEYS:
+            raise ValueError(f'Unknown legacy model hint {key!r} for {item}. '
+                             'Use item ID alone or item=guts|aatrox|agsheath|dragonslayer')
+        if item in result and key and result[item] and result[item] != key:
+            raise ValueError(f'Conflicting model hints for {item}')
+        result[item] = key or result.get(item)
     if not result:
         raise ValueError('Provide at least one --weapon or --weapons-file entry')
     return result
 
 
-def modern_definition(item, path, code, version):
-    # 1.21.4 lacks the custom_name selector. CustomModelData works on all
-    # modern versions. On 1.21.5+ a matching custom name also selects it.
+def sword_name_rules():
+    """Reuse the exact existing Netherite Sword CIT / name rules."""
+    return list(dict.fromkeys((name, path) for item, name, path in NAME_RULES
+                              if item == 'netherite_sword'))
+
+
+def modern_definition(item, version):
     namespace, item_name = item.split(':', 1)
     fallback = {'type': 'minecraft:model', 'model': f'{namespace}:item/{item_name}'}
     if version != '1.21.4':
-        names = [item.split(':', 1)[1], item.split(':', 1)[1].replace('_', ' ').title()]
-        # Preserve fallback for other names and other numeric IDs.
-        fallback = {'type': 'minecraft:select', 'property': 'minecraft:component',
-                    'component': 'minecraft:custom_name',
-                    'cases': [{'when': n, 'model': nested_model(path)} for n in dict.fromkeys(names)],
-                    'fallback': fallback}
-    return {'model': {'type': 'minecraft:range_dispatch',
-                      'property': 'minecraft:custom_model_data',
-                      'entries': [{'threshold': code, 'model': nested_model(path)},
-                                  {'threshold': code + 1, 'model': fallback}],
-                      'fallback': fallback}}
+        fallback = {
+            'type': 'minecraft:select',
+            'property': 'minecraft:component',
+            'component': 'minecraft:custom_name',
+            'cases': [{'when': name, 'model': nested_model(path)}
+                      for name, path in sword_name_rules()],
+            'fallback': fallback,
+        }
+    numeric = numeric_model_selector(fallback, [
+        (code, f'swords/{key}') for key, code in CUSTOM_SWORDS
+    ])
+    return {'model': numeric}
 
 
 def add_weapons(files, version, weapons):
-    legacy = version in PACK_FORMATS and isinstance(PACK_FORMATS[version], int) and PACK_FORMATS[version] < 46
-    for item, (path, code) in weapons.items():
+    legacy = isinstance(PACK_FORMATS[version], int) and PACK_FORMATS[version] < 46
+    for item in weapons:
         namespace, item_name = item.split(':', 1)
         if legacy:
-            # CIT (OptiFine / CIT Resewn / Forge CIT) is required for arbitrary
-            # modded items. Vanilla 1.20.x has no global CMD model hook.
-            model_ref = f'minecraft:item/custom/{path}'
-            base = f'assets/minecraft/optifine/cit/texturegiftos/extra_{namespace}_{item_name.replace("/", "_")}'
-            files[base + '_cmd.properties'] = (f'type=item\nitems={item}\nmodel={model_ref}\nnbt.CustomModelData={code}\n').encode()
-            files[base + '_name.properties'] = (f'type=item\nitems={item}\nmodel={model_ref}\nnbt.display.Name=ipattern:*{item_name.replace("_", " ")}*\n').encode()
+            base = (f'assets/minecraft/optifine/cit/texturegiftos/'
+                    f'extra_{namespace}_{item_name.replace("/", "_")}')
+            # Unlike the old implementation, every item has all the same
+            # name rules that a Netherite Sword has, regardless of its ID.
+            for idx, (name, path) in enumerate(sword_name_rules()):
+                model_ref = f'item/custom/{path}'
+                files[f'{base}_name_{idx:02d}.properties'] = (
+                    'type=item\n'
+                    f'items={item}\n'
+                    f'model={model_ref}\n'
+                    f'nbt.display.Name=ipattern:*{name}*\n'
+                ).encode('utf-8')
+            # Preserve numeric CustomModelData support for all models too.
+            for key, code in CUSTOM_SWORDS:
+                files[f'{base}_cmd_{code}.properties'] = (
+                    'type=item\n'
+                    f'items={item}\n'
+                    f'model=item/custom/swords/{key}\n'
+                    f'nbt.CustomModelData={code}\n'
+                ).encode('utf-8')
         else:
             key = f'assets/{namespace}/items/{item_name}.json'
             if key in files:
                 raise ValueError(f'Generated item definition would overwrite existing {key}')
-            files[key] = pretty_json(modern_definition(item, path, code, version))
+            files[key] = pretty_json(modern_definition(item, version))
     return files
 
 
@@ -98,7 +123,7 @@ def main():
     g = p.add_mutually_exclusive_group(required=True)
     g.add_argument('--version', choices=PACK_FORMATS)
     g.add_argument('--all', action='store_true')
-    p.add_argument('--weapon', action='append', default=[], help='namespace:item=model; repeat as needed')
+    p.add_argument('--weapon', action='append', default=[], help='namespace:item (optional legacy =model); repeat as needed')
     p.add_argument('--weapons-file', type=Path, help='One item=model per line; # comments allowed')
     p.add_argument('--output-dir', type=Path, default=ROOT / 'custom_builds')
     p.add_argument('--prune-missing-faces', action='store_true')
