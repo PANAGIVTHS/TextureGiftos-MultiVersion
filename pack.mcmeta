@@ -1,0 +1,13 @@
+{
+  "pack": {
+    "description": "TextureGiftos modern source (use tools/build_pack.py for specific Java versions)",
+    "min_format": [
+      69,
+      0
+    ],
+    "max_format": [
+      97,
+      1
+    ]
+  }
+}

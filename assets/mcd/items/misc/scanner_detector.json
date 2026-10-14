@@ -1,0 +1,6 @@
+{
+  "model": {
+    "type": "minecraft:model",
+    "model": "mcd:item/misc/scanner_detector"
+  }
+}

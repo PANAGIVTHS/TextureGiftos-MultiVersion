@@ -1,0 +1,26 @@
+name: Validate and build Java resource packs
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  packs:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Static validation
+        run: python3 tools/validate_pack.py
+      - name: Build and test every release
+        run: python3 tools/test_builds.py
+      - name: Check generated packs match their shared source
+        run: git diff --exit-code -- versions/
+      - name: Upload installable packs
+        uses: actions/upload-artifact@v4
+        with:
+          name: TextureGiftos-Java-1.20.1-to-26.3
+          path: versions/*/TextureGiftos_*.zip
+          if-no-files-found: error

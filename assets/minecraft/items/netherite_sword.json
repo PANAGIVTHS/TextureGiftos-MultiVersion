@@ -1,0 +1,159 @@
+{
+  "model": {
+    "type": "minecraft:range_dispatch",
+    "property": "minecraft:custom_model_data",
+    "entries": [
+      {
+        "threshold": 123001,
+        "model": {
+          "type": "minecraft:model",
+          "model": "mcd:item/swords/agsheath"
+        }
+      },
+      {
+        "threshold": 123002,
+        "model": {
+          "type": "minecraft:model",
+          "model": "mcd:item/swords/aatrox"
+        }
+      },
+      {
+        "threshold": 123003,
+        "model": {
+          "type": "minecraft:model",
+          "model": "mcd:item/swords/guts"
+        }
+      },
+      {
+        "threshold": 123004,
+        "model": {
+          "type": "minecraft:model",
+          "model": "mcd:item/swords/dragonslayer"
+        }
+      },
+      {
+        "threshold": 123005,
+        "model": {
+          "type": "minecraft:select",
+          "property": "minecraft:component",
+          "component": "minecraft:custom_name",
+          "cases": [
+            {
+              "when": "Guts' Sword",
+              "model": {
+                "type": "minecraft:model",
+                "model": "mcd:item/swords/guts"
+              }
+            },
+            {
+              "when": "Gut’s Sword",
+              "model": {
+                "type": "minecraft:model",
+                "model": "mcd:item/swords/guts"
+              }
+            },
+            {
+              "when": "Gut's Sword",
+              "model": {
+                "type": "minecraft:model",
+                "model": "mcd:item/swords/guts"
+              }
+            },
+            {
+              "when": "Aatrox",
+              "model": {
+                "type": "minecraft:model",
+                "model": "mcd:item/swords/aatrox"
+              }
+            },
+            {
+              "when": "Tenryū’s Shriek",
+              "model": {
+                "type": "minecraft:model",
+                "model": "mcd:item/swords/agsheath"
+              }
+            },
+            {
+              "when": "Dragonslayer",
+              "model": {
+                "type": "minecraft:model",
+                "model": "mcd:item/swords/dragonslayer"
+              }
+            },
+            {
+              "when": "Dragon Slayer",
+              "model": {
+                "type": "minecraft:model",
+                "model": "mcd:item/swords/dragonslayer"
+              }
+            }
+          ],
+          "fallback": {
+            "type": "minecraft:model",
+            "model": "minecraft:item/netherite_sword"
+          }
+        }
+      }
+    ],
+    "fallback": {
+      "type": "minecraft:select",
+      "property": "minecraft:component",
+      "component": "minecraft:custom_name",
+      "cases": [
+        {
+          "when": "Guts' Sword",
+          "model": {
+            "type": "minecraft:model",
+            "model": "mcd:item/swords/guts"
+          }
+        },
+        {
+          "when": "Gut’s Sword",
+          "model": {
+            "type": "minecraft:model",
+            "model": "mcd:item/swords/guts"
+          }
+        },
+        {
+          "when": "Gut's Sword",
+          "model": {
+            "type": "minecraft:model",
+            "model": "mcd:item/swords/guts"
+          }
+        },
+        {
+          "when": "Aatrox",
+          "model": {
+            "type": "minecraft:model",
+            "model": "mcd:item/swords/aatrox"
+          }
+        },
+        {
+          "when": "Tenryū’s Shriek",
+          "model": {
+            "type": "minecraft:model",
+            "model": "mcd:item/swords/agsheath"
+          }
+        },
+        {
+          "when": "Dragonslayer",
+          "model": {
+            "type": "minecraft:model",
+            "model": "mcd:item/swords/dragonslayer"
+          }
+        },
+        {
+          "when": "Dragon Slayer",
+          "model": {
+            "type": "minecraft:model",
+            "model": "mcd:item/swords/dragonslayer"
+          }
+        }
+      ],
+      "fallback": {
+        "type": "minecraft:model",
+        "model": "minecraft:item/netherite_sword"
+      }
+    }
+  }
+}

@@ -1,0 +1,13 @@
+# Python caches and build scratch space
+__pycache__/
+*.py[cod]
+/dist/
+/.pytest_cache/
+
+# Workspace / OS files
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# The builds under versions/ are intentionally tracked.
