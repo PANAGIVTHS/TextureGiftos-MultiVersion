@@ -11,3 +11,4 @@ Thumbs.db
 .idea/
 
 # The builds under versions/ are intentionally tracked.
+/custom_builds/
